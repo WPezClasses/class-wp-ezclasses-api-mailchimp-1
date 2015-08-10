@@ -16,6 +16,8 @@
 /**
  * CHANGE LOG
  *
+ * --
+ *
  */
 
 /**
@@ -36,8 +38,6 @@ if ( ! class_exists('Class_WP_ezClasses_API_Mailchimp_1') ) {
         protected $_file;
 
         protected $_arr_init;
-
-        protected $_str_api_key;
         protected $_obj_mc;
 
         public function __construct() {
@@ -47,44 +47,19 @@ if ( ! class_exists('Class_WP_ezClasses_API_Mailchimp_1') ) {
         /**
          *
          */
-        public function ez__construct($arr_args = ''){
+        public function ez__construct($str_api_key = ''){
 
             $this->setup();
 
-            $this->mailchimp_todo();
-
             require('mailchimp/src/Mailchimp.php');
 
-            $this->_obj_mc = new Mailchimp($this->_str_api_key);
+            $this->_arr_init = WPezHelpers::ez_array_merge( array ($this->init_defaults(), $this->mailchimp_todo() ) );
 
+            if ( ! empty($str_api_key) && is_string($str_api_key) ){
+                $this->_arr_init['api_key'] = $str_api_key;
+            }
 
-            $listid = "fcbb18ca26";
-
-            $MailChimp = $this->_obj_mc;
-
-         //   $x = $this->get_lists();
-            $x = $this->get_list(11920730);
-        //    print_r($x);
-
-            echo '<br><br>';
-            $x = $this->get_id(1192073);
-        //    print_r($x);
-            var_dump($x);
-
-
-
-
-        //    $result=$MailChimp->call("lists/list");
-        //        var_dump($result);
-
-            $result=$MailChimp->call("lists/subscribe", array(
-                "id"=>$listid,
-                "email"=>array("email"=>"mark.simchock@alchemyunited.com"),
-                "update_existing"=>true,
-                "send_welcome"=>false,
-            ));
-        //    var_dump($result);
-
+            $this->_obj_mc = new Mailchimp($this->_arr_init['api_key']);
 
         }
 
@@ -95,20 +70,127 @@ if ( ! class_exists('Class_WP_ezClasses_API_Mailchimp_1') ) {
          */
         protected function mailchimp_todo(){
 
-            $this->_str_api_key = 'TODO';
+            $arr_todo = array(
+                'api_key'       => 'TODO',
+                'list_web_id'   => 'TODO',           // list
+            );
 
+            return $arr_todo;
+        }
+
+
+        /**
+         * @return array
+         */
+        protected function init_defaults(){
+
+            $arr_defaults = array(
+
+                'api_key'           => false,
+
+                'get_lists_transient_active'             => true,
+                'get_lists_transient_name'               => 'TODO_get_lists_transient_name',
+                'get_lists_transient_expiration'         => 60 * 5,                     // once your lists are stable, jack this up. just keep in mind that if you add a new list you'll have delete the transient or make active false for a bit til the transient expires.
+
+                'list_id'           => false,
+                'list_web_id'       => false,
+
+                'update_existing'   => true,
+                'send_welcome'      => false,
+                'double_optin'      => false,
+
+            );
+
+            return $arr_defaults;
+        }
+
+        /**
+         * @param $url
+         * @param $parms
+         */
+        public function call($url = 0, $parms = 0){
+
+            if ( is_string($url) ){
+
+                $arr_url_defaults = $this->get_call_defaults($url);
+
+                // TODO - what if parms aren't an array?
+                $arr_new_parms = WPezHelpers::ez_array_merge(array($arr_url_defaults, $parms ));
+
+                return $this->_obj_mc->call($url, $arr_new_parms);
+            }
+        }
+
+        /**
+         * @param string $url
+         * @return array
+         */
+        protected function get_call_defaults($url = ''){
+
+            if ( isset ($this->call_defaults()[$url]) )
+            {
+                return $this->call_defaults()[$url];
+            }
+
+            return array();
+        }
+
+        /**
+         *
+         */
+        protected function call_defaults(){
+
+            $arr_call_defaults = array(
+
+                'lists/subscribe'=> array(
+                    'id'                => $this->get_id($this->_arr_init['list_web_id']),
+                    'update_existing'   => $this->_arr_init['update_existing'],
+                    'send_welcome'      => $this->_arr_init['send_welcome'],
+                    'double_optin'      => $this->_arr_init['double_optin'],
+                ),
+            );
+
+            return  $arr_call_defaults;
+        }
+
+        /**
+         * @param int $key
+         * @param int $value
+         */
+        public function set($key = 0, $value = 0){
+
+            if ( $key != 0 and is_string($key)){
+
+                $this->_arr_init[$key] = $value;
+                return true;
+
+            }
+            return false;
         }
 
 
         /**
          *
          */
-        public function get_lists(){
+        public function get_lists()
+        {
 
-            $arr_lists = $this->_obj_mc->call("lists/list");
+            if ( $this->_arr_init['get_lists_transient_active'] === true ) {
 
+                $mix_get_transient = get_transient($this->_arr_init['get_lists_transient_name']);
+
+                if ($mix_get_transient !== false){
+                    return $mix_get_transient;
+                }
+                $arr_lists = $this->_obj_mc->call("lists/list", array());
+
+                // TODO - check for errors before set_
+                set_transient( $this->_arr_init['get_lists_transient_name'], $arr_lists, $this->_arr_init['get_lists_transient_expiration'] );
+                return $arr_lists;
+            }
+
+            $arr_lists = $this->_obj_mc->call("lists/list", array());
             return $arr_lists;
-
         }
 
         /**
