@@ -1,5 +1,5 @@
 # class-wp-ezclasses-api-mailchimp-1
 
-### Coming soon.
+### TODO
 
-Raw and very much incomplete atm. Come back later :)
+Works (and is ez to read) but needs some docs here. Sorry. 
